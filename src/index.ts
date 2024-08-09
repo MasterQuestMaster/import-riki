@@ -11,8 +11,17 @@
  * Learn more at https://developers.cloudflare.com/workers/
  */
 
+import { Octokit } from "octokit";
+
+const GITHUB_API_URL = "https://api.github.com/"
+
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+
+		const octokit = new Octokit({
+			auth: ""
+		});
+
 		return new Response('Hello World!');
 	},
 } satisfies ExportedHandler<Env>;
