@@ -14,6 +14,7 @@ Save the SHA to Database when importing.
 
 import { FolderContentSchema } from "./schema/FolderContent";
 //import { SetFileContentSchema } from "./schema/SetFileContent";
+import path from "node:path";
 
 const RIKI_API_BASE_URL = "https://ws-riki.pages.dev/api/internal";
 
@@ -24,22 +25,34 @@ export default {
 		//We parse according to the specified schema. Throws error if not successful.
 		const folderContentArray = FolderContentSchema.parse(await folderResponse.json());
 
-		folderContentArray.forEach(async entry => {
-			//Get content of JSON file from Github.
-			const fileResponse = await fetch(entry.download_url);
-			const fileContent = await fileResponse.json();
-			const setId = /([WS0-9]+)\.json/.exec(entry.name)?.groups?.[0]; //TODO: test this regex.
+		let errorList = [];
 
-			//Call the Riki-API
-			const response = await fetch(`${RIKI_API_BASE_URL}/set/${setId}`, {
-				method: "POST",
-				headers: {
-					"Authentication": env.RIKI_INTERNAL_API_KEY,
-					"Accept": "application/json",
-					"Content-Type": "application/json"
-				},
-				body: JSON.stringify(fileContent)
-			});
+		folderContentArray.forEach(async entry => {
+			try {
+				//Get content of JSON file from Github.
+				const fileResponse = await fetch(entry.download_url);
+				const fileContent = await fileResponse.json();
+				const fileNameParts = path.parse(entry.name).name.split("_");
+
+				if(fileNameParts.length <= 1) {
+					throw new Error(`bad filename structure ("${entry.name}"). cannot get set id.`);
+				}
+
+				//Call the Riki-API
+				const response = await fetch(`${RIKI_API_BASE_URL}/set/${fileNameParts[1]}/cards`, {
+					method: "POST",
+					headers: {
+						"Authentication": env.RIKI_INTERNAL_API_KEY,
+						"Accept": "application/json",
+						"Content-Type": "application/json"
+					},
+					body: JSON.stringify(fileContent)
+				});
+			}
+			catch(e) {
+				console.error(e);
+				errorList.push(e);
+			}
 		});
 
 
