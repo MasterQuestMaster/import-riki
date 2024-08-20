@@ -1,6 +1,6 @@
 import {z} from "zod";
 
-//Note: You can add error messages for URL etc.
+//Github API folder content
 export const FolderContentSchema = z.array(
     z.object({
         name: z.string(),
@@ -9,4 +9,5 @@ export const FolderContentSchema = z.array(
     })
 );
 
+//Inferred Types
 export type FolderContent = z.infer<typeof FolderContentSchema>;

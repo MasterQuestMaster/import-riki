@@ -12,51 +12,42 @@ Save the SHA to Database when importing.
 
 */
 
-import { FolderContentSchema } from "./schema/FolderContent";
-//import { SetFileContentSchema } from "./schema/SetFileContent";
-import path from "node:path";
 
-const RIKI_API_BASE_URL = "https://ws-riki.pages.dev/api/internal";
+import { importNeoStandards } from "./import/neo-import";
+import { importCardsFromGithub } from "./import/card-import";
+//import { SetFileContentSchema } from "./schema/SetFileContent";
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 
-		const folderResponse = await fetch("https://api.github.com/repos/CCondeluci/WeissSchwarz-ENG-DB/contents/DB");
-		//We parse according to the specified schema. Throws error if not successful.
-		const folderContentArray = FolderContentSchema.parse(await folderResponse.json());
+		//When calling worker through the browser, it will call it twice, asking for the favicon.
+		const url = new URL(request.url);
+		if(url.pathname == "/favicon.ico")
+			return new Response(null);
 
-		let errorList = [];
+		//TODO: Think if we make separate workers for importing neo-std, cards, set infos and special rarities.
+		//Probably good to have it all in one place because of boilerplate and same conditions.
+		//Shared env as well.
+		//Just have to carefully handle errors (sections in response) and response codes (with individual status and messages
 
-		folderContentArray.forEach(async entry => {
-			try {
-				//Get content of JSON file from Github.
-				const fileResponse = await fetch(entry.download_url);
-				const fileContent = await fileResponse.json();
-				const fileNameParts = path.parse(entry.name).name.split("_");
+		//const cardResponse = await importCardsFromGithub(env);
+		const neoResponse = await importNeoStandards(env);
+		//TODO: foil-import, set-import
 
-				if(fileNameParts.length <= 1) {
-					throw new Error(`bad filename structure ("${entry.name}"). cannot get set id.`);
+		return new Response(
+			JSON.stringify({
+				"set-import": null,
+				"neo-import": neoResponse,
+				"card-import": null,//cardResponse,
+				"foil-import": null,
+			}), 
+			{
+				status: 200,
+				headers: {
+					"Content-Type": "application/json"
 				}
-
-				//Call the Riki-API
-				const response = await fetch(`${RIKI_API_BASE_URL}/set/${fileNameParts[1]}/cards`, {
-					method: "POST",
-					headers: {
-						"Authentication": env.RIKI_INTERNAL_API_KEY,
-						"Accept": "application/json",
-						"Content-Type": "application/json"
-					},
-					body: JSON.stringify(fileContent)
-				});
 			}
-			catch(e) {
-				console.error(e);
-				errorList.push(e);
-			}
-		});
+		);
 
-
-
-		return new Response('Hello World!');
 	},
 } satisfies ExportedHandler<Env>;
