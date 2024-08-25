@@ -106,3 +106,8 @@ RIKI_API_BASE_URL = "https://ws-riki.pages.dev/api/internal"
 # [[vectorize]]
 # binding = "MY_INDEX"
 # index_name = "my-index"
+
+[triggers]
+# Use a time that is not prime free time for either US or Germany. Use UTC time.
+# 7AM UTC means 9AM Berlin, 3AM NY, 0AM LA.
+crons = ["0 7 * * *"]

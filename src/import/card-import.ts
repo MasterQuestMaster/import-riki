@@ -18,6 +18,10 @@ export type LocalCardImportResponse = {
 
 export async function importCardsFromGithub(env: Env): Promise<LocalCardImportResponse> {
 
+    //TODO: Use Batch-Transactions for inserting all cards in a set at once.
+    // https://docs.astro.build/en/guides/astro-db/#batch-transactions
+    // 
+
     // try {
         const folderResponse = await fetch(WS_ENG_DB_GITHUB_URL, {
             headers: {
@@ -36,9 +40,6 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
         const folderContentArray = FolderContentSchema.parse(await folderResponse.json()).slice(0,1);
 
         const rikiClient = new RikiApiClient(env.RIKI_API_BASE_URL, env.RIKI_INTERNAL_API_KEY);
-
-        //TODO: The Zod schema fails. It complains about string instead of date, and about null instead of strings.
-        //Even though the fields are marked optional.
 
         //Get sets to check for SHAs
         const setMap = createSetMap(await rikiClient.getAllSets());
