@@ -8,10 +8,8 @@ export type RikiCardImportResponse = {
     status: number,
     errorCount: number,
     details?: Array<{
-        cardCode: string,
-        cardName: string,
-        status: number,
-        message: string
+        id: string,
+        name: string
     }>
 }
 
@@ -19,10 +17,9 @@ export type RikiNeoImportResponse = {
     message: string,
     status: number,
     details?: {
-        title: string;
-        codes: string[];
-        status: number;
-        message: string;
+        id: string,
+        title: string,
+        codes: string[]
     }[]
 }
 

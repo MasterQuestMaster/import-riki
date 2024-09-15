@@ -25,13 +25,13 @@ export default {
 		
 		//const setResponse = await importSets(env);
 		const neoResponse = await importNeoStandards(env);
-		//const cardResponse = await importCardsFromGithub(env);
+		const cardResponse = await importCardsFromGithub(env);
 
 		return new Response(
 			JSON.stringify({
 				"set-import": null,
 				"neo-import": neoResponse,
-				"card-import": null,//cardResponse,
+				"card-import": cardResponse,
 				"foil-import": null,
 			}), 
 			{
@@ -50,7 +50,7 @@ export default {
 		//console.log("Set Response", setResponse");
 		const neoResponse = await importNeoStandards(env);
 		console.log("Neo Standard Import", neoResponse);
-		//const cardResponse = await importCardsFromGithub(env);
-		//console.log("Card Import", cardResponse);
+		const cardResponse = await importCardsFromGithub(env);
+		console.log("Card Import", cardResponse);
 	}
 } satisfies ExportedHandler<Env>;
