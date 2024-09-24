@@ -1,8 +1,12 @@
-import { FolderContentSchema } from "src/schema/FolderContent";
-import { SetInfo } from "src/schema/riki/SetInfo";
 import { RikiApiClient, RikiCardImportResponse } from "src/RikiApiClient";
-import { WS_ENG_DB_GITHUB_URL } from "src/config/import-config.json";
 import { generateBatchResponseMessageAndStatus, isJsonResponse, isStatusOk } from "src/utils";
+import { getSetInfosFromWeb } from "./set-import";
+
+import { SetInfo } from "src/schema/riki/SetInfo";
+import { SetFileSchema } from "src/schema/SetFile";
+import { FolderContentSchema } from "src/schema/FolderContent";
+
+import { WS_ENG_DB_GITHUB_URL } from "src/config/import-config.json";
 
 export type LocalCardImportResponse = {
     message: string,
@@ -78,15 +82,23 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
         
                     //Get content of JSON file from Github (do not check Content-Type because it's not JSON)
                     const fileResponse = await fetch(entry.download_url);
-                    const fileContent = await fileResponse.json();
+                    const fileContent = SetFileSchema.parse(await fileResponse.json());
 
                     //Import the file into the Riki-DB.
                     const responseJson = await rikiClient.importSetCards(setId, fileContent);
                     
                     //Check for success (200) before updating SHA. We count 207 (multi-status) as error and retry this file next time.
                     if(responseJson.status == 200) {
-                        //Update set hash in DB.
-                        const shaResponse = await rikiClient.updateSet(setId, {sha: entry.sha});
+                        //Find additional set infos from WS-TCG website
+                        const sampleCard = fileContent.find((card) => card.rarity != "PR" && card.rarity != "TD");
+                        const additionalSetInfos = sampleCard && await getSetInfosFromWeb(sampleCard?.code);
+
+                        //Update set hash in DB (also update additional set infos, if any).
+                        const shaResponse = await rikiClient.updateSet(setId, {
+                            ...additionalSetInfos, 
+                            sha: entry.sha
+                        });
+
                         if(!isStatusOk(shaResponse.status)) {
                             return {
                                 fileName: entry.name,

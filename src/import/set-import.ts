@@ -1,24 +1,54 @@
 /*
-WS-TCG:
-Product page has Release Date on Detail Page and Set Type in the name (kinda, not consistent).
-Cardlist has Type as grouping. The names seem to 100% match the ones from the product page (excluding the set type)
-So we could check for product that includes the set name from card list.
-We must also match set type, since some sets have the same name (RWBY booster vs. RWBY premium booster are both called RWBY).
-
-We can also potentially get all cards from WS-TCG through this method.
-We would have to develop a more involved scraper app though that goes through the pages in the set overview.
-
-But we would get all foil cards, since they are included in the set overview.
-
-If we import sets this way, we don't have the SHA that tells us if the set changed, which means we either don't recognize changes,
-or we check all sets everytime.
-
-Multiple Sets:
-We would import TDs and BPs as separate sets maybe.
-Problem: SetID conflicts. S31 would be for both the TD and BP.
-We could have "S31_TD" for the ID, but then we need another column for the actual code maybe.
-
-Some TDs are entirely different products. Bang Dream My Go!
-Or the Hololive TDs have entirely different names for each gen.
-
+Sometimes TD has different product name, like Bang Dream My Go vs Countdown Collection (WE42).
+PR will be kept in their set instead of the Promo Set, but will have their special setName.
 */
+
+import { parse as parseHtml } from "node-html-parser";
+import { parse as parseDate } from "date-fns";
+
+import { CARD_DETAILS_EN_URL } from "src/config/import-config.json";
+
+//Called from card-import
+export async function getSetInfosFromWeb(sampleCardNo: string) {
+    let releaseDate: Date|null = null;
+    let productType: string|null = null;
+
+    //Get the WS-TCG Card List Detail Page for the sample card.
+    const cardDetailResponse = await fetch(`${CARD_DETAILS_EN_URL}?cardno=${encodeURIComponent(sampleCardNo)}`);
+
+    if(!cardDetailResponse.ok) {
+        throw new Error(`Request to the WS-TCG card details page failed (${cardDetailResponse.status} ${cardDetailResponse.statusText})`);
+    }
+
+    //Use the set info on the bottom of the card detail page to get our infos.
+    const cardDetailHtml = parseHtml(await cardDetailResponse.text());
+    const releaseDateStr = cardDetailHtml.querySelector(".p-cards__cardset-item .date")?.innerText;
+
+    if(releaseDateStr) {
+        //On the card detail page, the date is formatted like "Aug. 2, 2024".
+        releaseDate = parseDate(releaseDateStr, "MMM. d, y", new Date());
+    }
+
+    //Get the URL of the "Product Page" button to the right of the Date
+    const productPageUrl = cardDetailHtml.querySelector(".p-cards__cardset-link a[href*='/products']")?.getAttribute("href");
+
+    if(productPageUrl) {
+        const productPageResponse = await fetch(productPageUrl);
+
+        if(!productPageResponse.ok) {
+            throw new Error(`Request to the WS-TCG product page failed (${cardDetailResponse.status} ${cardDetailResponse.statusText})`)
+        }
+
+        const productPageHtml = parseHtml(await productPageResponse.text());
+        productType = productPageHtml.querySelector(".p-products__category")?.innerText ?? null;
+
+        //TODO: We could potentially also get the image from here. (".p-products__wrapper img")
+        //We can save it in the database and then display it in the Set Overview on hover, on on the set detail page.
+        //If we do, we need a default picture for sets without an image as well.
+    }
+
+    return {
+        releaseDate: releaseDate,
+        type: productType
+    };
+}

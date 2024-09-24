@@ -29,9 +29,9 @@ export default {
 
 		return new Response(
 			JSON.stringify({
-				"set-import": null,
 				"neo-import": neoResponse,
 				"card-import": cardResponse,
+				"set-import": null,
 				"foil-import": null,
 			}), 
 			{

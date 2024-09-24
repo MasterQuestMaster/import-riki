@@ -1,5 +1,6 @@
 {
     "WS_ENG_DB_GITHUB_URL": "https://api.github.com/repos/CCondeluci/WeissSchwarz-ENG-DB/contents/DB",
     "NEO_STANDARD_EN_URL": "https://en.ws-tcg.com/rules/deck",
-    "NEO_STANDARD_JP_URL": "https://ws-tcg.com/rules/deck_rule"
+    "NEO_STANDARD_JP_URL": "https://ws-tcg.com/rules/deck_rule",
+    "CARD_DETAILS_EN_URL": "https://en.ws-tcg.com/cardlist/"
 }
