@@ -1,6 +1,6 @@
 import { z, ZodIssue } from "zod"
-import { SetInfo, SetInfoSchema, SetInfoUpdate } from "./schema/riki/SetInfo"
 import { isJsonResponse } from "./utils"
+import { SetInfo, SetInfoSchema, SetInfoUpdate } from "./schema/riki/SetInfo"
 
 export type RikiCardImportResponse = {
     setId: string,
@@ -9,6 +9,7 @@ export type RikiCardImportResponse = {
     errorCount: number,
     details?: Array<{
         id: string,
+        cardno: string,
         name: string
     }>
 }

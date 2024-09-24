@@ -6,8 +6,9 @@
 //so we don't have to define a short name manually.
 
 import { parse, HTMLElement } from "node-html-parser";
-import { NEO_STANDARD_EN_URL } from "src/config/import-config.json";
 import { RikiApiClient, RikiNeoImportResponse } from "src/RikiApiClient";
+
+import { NEO_STANDARD_EN_URL } from "src/config/import-config.json";
 
 export type LocalNeoImportResponse = {
     status: number,
