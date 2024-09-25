@@ -3,7 +3,7 @@ import { generateBatchResponseMessageAndStatus, isJsonResponse, isStatusOk } fro
 import { getSetInfosFromWeb } from "./set-import";
 
 import { SetInfo } from "src/schema/riki/SetInfo";
-import { SetFileSchema } from "src/schema/SetFile";
+import { SetFileEntry, SetFileSchema } from "src/schema/SetFile";
 import { FolderContentSchema } from "src/schema/FolderContent";
 
 import { WS_ENG_DB_GITHUB_URL } from "src/config/import-config.json";
@@ -41,7 +41,7 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
 
         //We parse according to the specified schema. Throws error if not successful.
         //TODO: This was reduced to 1 element for testing. Remove if we want to import all sets.
-        const folderContentArray = FolderContentSchema.parse(await folderResponse.json()).slice(0,1);
+        const folderContentArray = FolderContentSchema.parse(await folderResponse.json()).slice(0,2);
 
         const rikiClient = new RikiApiClient(env.RIKI_API_BASE_URL, env.RIKI_INTERNAL_API_KEY);
 
@@ -86,12 +86,13 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
 
                     //Import the file into the Riki-DB.
                     const responseJson = await rikiClient.importSetCards(setId, fileContent);
+                    let additionalSetInfos:Record<string,any>|null = null;
                     
                     //Check for success (200) before updating SHA. We count 207 (multi-status) as error and retry this file next time.
                     if(responseJson.status == 200) {
+
                         //Find additional set infos from WS-TCG website
-                        const sampleCard = fileContent.find((card) => card.rarity != "PR" && card.rarity != "TD");
-                        const additionalSetInfos = sampleCard && await getSetInfosFromWeb(sampleCard?.code);
+                        additionalSetInfos = await getAdditionalSetInfos(fileContent);
 
                         //Update set hash in DB (also update additional set infos, if any).
                         const shaResponse = await rikiClient.updateSet(setId, {
@@ -104,7 +105,8 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
                                 fileName: entry.name,
                                 setId: setId,
                                 status: shaResponse.status,
-                                message: `Card import was successful, but SHA update in Set table failed: ${shaResponse.message}`,
+                                additionalSetInfos: additionalSetInfos ?? null,
+                                message: `Card import was successful, but Set update in Set table failed: ${shaResponse.message}`,
                                 details: responseJson.details
                             };
                         }
@@ -117,6 +119,7 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
                         fileName: entry.name,
                         setId: setId,
                         status: responseJson.status,
+                        additionalSetInfos: additionalSetInfos,
                         message: responseJson.message,
                         details: responseJson.details
                     };
@@ -158,4 +161,20 @@ function createSetMap(setList: SetInfo[]) {
         acc[set.id] = set;
         return acc;
     }, {} as Record<string,SetInfo>);
+}
+
+async function getAdditionalSetInfos(setFile: SetFileEntry[]) {    
+    const sampleCard = setFile.find((card) => card.rarity != "PR" && card.rarity != "TD")
+
+    if(!sampleCard) {
+        return null;
+    }
+
+    try {
+        return getSetInfosFromWeb(sampleCard?.code);
+    }
+    catch(e: any) {
+        console.error("Failed to load additional set info: " + e.message);
+        return null;
+    }
 }
