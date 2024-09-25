@@ -20,13 +20,16 @@ export type LocalCardImportResponse = {
     }>
 }
 
+const MAX_SET_FILES_PER_RUN = 2;
+
+//Amount of requests:
+//Global: 2
+//Per Set: 5
+//-> Max amount of sets per run: 9
 export async function importCardsFromGithub(env: Env): Promise<LocalCardImportResponse> {
-
-    //TODO: Use Batch-Transactions for inserting all cards in a set at once.
-    // https://docs.astro.build/en/guides/astro-db/#batch-transactions
-    // 
-
+    
     // try {
+
         const folderResponse = await fetch(WS_ENG_DB_GITHUB_URL, {
             headers: {
                 "Accept": "application/vnd.github+json",
@@ -41,7 +44,7 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
 
         //We parse according to the specified schema. Throws error if not successful.
         //TODO: This was reduced to 1 element for testing. Remove if we want to import all sets.
-        const folderContentArray = FolderContentSchema.parse(await folderResponse.json()).slice(0,2);
+        const folderContentArray = FolderContentSchema.parse(await folderResponse.json());
 
         const rikiClient = new RikiApiClient(env.RIKI_API_BASE_URL, env.RIKI_INTERNAL_API_KEY);
 
@@ -49,37 +52,28 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
         const setMap = createSetMap(await rikiClient.getAllSets());
 
         let countErrors = 0;
-        let countUnchanged = 0;
+
+        //Filter out unchanged items, then get a predefined number of sets to process.
+        //Only process a certain number of files, because Workers free has the 50 sub-requests limit.
+        const setFileBatch = folderContentArray.filter(entry => {
+            const setInfo = setMap[getSetIdFromFileName(entry.name) ?? ""];
+            return !setInfo || setInfo.sha != entry.sha;
+        }).slice(0,MAX_SET_FILES_PER_RUN);
 
         //For testing we only use the first file in the array.
         const responses:LocalCardImportResponse["details"] = await Promise.all(
-            folderContentArray.map(async entry => {
+            setFileBatch.map(async (entry) => {
                 let setId;
         
                 // try {
+
+                    //SetID can still be undefined since the filter also checks for non-existing steInfo.
                     setId = getSetIdFromFileName(entry.name);
         
                     if(!setId) {
                         throw new Error(`bad filename structure ("${entry.name}"). cannot get setId.`);
                     }
 
-                    console.log("import start: " + setId);
-
-                    const setInfo = setMap[setId];
-
-                    //Compare SHA to see if update is necessary.
-                    if(setInfo && setInfo.sha === entry.sha) {
-                        countUnchanged ++;
-                        
-                        //Return preemptively since the file is the same.
-                        return {
-                            fileName: entry.name,
-                            setId: setId,
-                            status: 304, /* not modified */
-                            message: "The set file is already imported and no updates are needed."
-                        };
-                    }
-        
                     //Get content of JSON file from Github (do not check Content-Type because it's not JSON)
                     const fileResponse = await fetch(entry.download_url);
                     const fileContent = SetFileSchema.parse(await fileResponse.json());
@@ -135,7 +129,7 @@ export async function importCardsFromGithub(env: Env): Promise<LocalCardImportRe
             }
         ));
 
-        const overallResponseStatus = generateBatchResponseMessageAndStatus(countErrors, countUnchanged, folderContentArray.length);
+        const overallResponseStatus = generateBatchResponseMessageAndStatus(countErrors, 0, setFileBatch.length);
 
         return {
             message: overallResponseStatus.message,

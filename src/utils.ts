@@ -26,7 +26,7 @@ export function generateBatchResponseMessageAndStatus(batchErrorCount: number, b
         };
     else if(batchUnchangedCount == batchTotal)
         return { 
-            status: 304, /* 500: Internal Server error */
+            status: 304, /* 304: Not modified */
             message: `All ${batchTotal} items were unchanged and didn't need an update.`
         };
     else

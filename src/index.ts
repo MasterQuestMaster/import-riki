@@ -8,9 +8,13 @@
 
 import { importNeoStandards } from "./import/neo-import";
 import { importCardsFromGithub } from "./import/card-import";
-//import { SetFileContentSchema } from "./schema/SetFileContent";
 
 export default {
+	//Amount of Requests:
+	//Neo: 2
+	//Cards:
+	//   Global: 2
+	//   Per set: 5 (2 regular + 3 for set info)
 	async fetch(request, env, ctx): Promise<Response> {
 
 		//TODO: Think if we make separate workers for importing neo-std, cards, set infos and special rarities.
@@ -31,7 +35,6 @@ export default {
 			JSON.stringify({
 				"neo-import": neoResponse,
 				"card-import": cardResponse,
-				"set-import": null,
 				"foil-import": null,
 			}), 
 			{
